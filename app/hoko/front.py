@@ -1,7 +1,7 @@
-"""센서 파형을 HOKO 포락선으로 바꾼다.
+"""센서 파형을 CNN few-shot이 읽는 1차원 신호로 바꾼다.
 
-회전수는 센서에 없으므로 torch.ones 로 만든 임의의 값을 쓴다.
-베어링 종류 가중치는 쓰지 않는다.
+임의 회전수는 torch.ones(1) * 1800 이다. 이 값은 각속도 포락선의 축을 만들 뿐이고,
+Koopman trunk의 orders 텐서로 전달되지 않는다.
 """
 
 from __future__ import annotations
@@ -16,14 +16,20 @@ SIGNAL_LENGTH = 1024
 
 
 def arbitrary_rpm() -> float:
-    """센서에 없는 회전수를 torch.ones 기반 고정값으로 만든다."""
+    """포락선 각도 축에 쓸 고정 회전수.
+
+    torch.ones(1)에 1800을 곱한다. 1rpm이면 1024샘플, 2560Hz 블록 안에 4회전 창이 생기지 않는다.
+    """
     import torch
 
     return float(torch.ones(1) * 1800)
 
 
 def to_signal(samples, sample_rate: float) -> tuple[np.ndarray, float]:
-    """파형을 HOKO 포락선 평균으로 접어 CNN 입력 길이로 맞춘다."""
+    """대역 포락선을 평균 내어 길이 1024의 1차원 신호로 다시 샘플링한다.
+
+    sensor_envelopes 결과는 (1, 대역 수, 각도 좌표)다. 대역 축을 평균하면 CNN Classifier가 받는 (샘플 길이,) 파형이 된다.
+    """
     from .adapters import sensor_envelopes
 
     rpm = arbitrary_rpm()

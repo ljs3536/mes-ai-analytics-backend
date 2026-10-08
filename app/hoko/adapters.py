@@ -11,7 +11,14 @@ import numpy as np
 def sensor_envelopes(
     waveform: np.ndarray, *, sample_rate: float, shaft_frequency_hz: float, config: dict
 ) -> np.ndarray:
-    """짧은 진동 블록을 주파수 대역별 포락선으로 만든 뒤 회전 각도 축에 다시 올린다."""
+    """시간 파형을 주파수 대역별 포락선으로 만든 뒤, 축 회전에 맞춰 각도 좌표로 다시 찍는다.
+
+    1. 평균을 빼 FFT한다.
+    2. rfft 빈을 spectral_atoms(32)개 구간으로 나누고, 각 구간만 역변환한 절대값이 그 대역의 포락선이다.
+    3. 블록 길이 * 축주파수 / 샘플레이트가 회전 수다. window_units(4)보다 짧으면 각도 창을 만들 수 없어 실패한다.
+    4. 회전당 samples_per_unit(64)개 좌표로 포락선을 보간한다.
+    반환 shape는 (1, 대역 수, 각도 좌표)다. Koopman 믹서의 [batch, atom, coordinate]와 비슷해 보이지만, 이 배열은 CNN 입력으로 평균되기 전에 여기서 끝난다.
+    """
 
     observation = config["observation"]
     atom_count = int(observation["spectral_atoms"])

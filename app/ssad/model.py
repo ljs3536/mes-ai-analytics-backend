@@ -93,7 +93,15 @@ def init_weights(net, init_type='normal', init_gain=0.02):
 
 
 class Classifier(nn.Module):
-    """1D CNN으로 파형을 하나의 임베딩 벡터로 압축한다."""
+    """SSAD와 현재 HOKO worker가 함께 쓰는 1D CNN 특징 추출기다.
+
+    입력은 (배치, 파형 길이)다. HOKO는 여기에 길이 1024 포락선을 넣는다.
+    다섯 단의 Downsample이 길이를 줄이고 채널을 n_filters, 2배, 4배, 8배, 16배로 늘린다.
+    마지막 단만 stride 1이라 길이를 더 반으로 자르지 않는다.
+    AdaptiveAvgPool1d(1)이 남은 시간을 평균 내어 (배치, n_filters * 16) 벡터를 만든다.
+    이 벡터가 few-shot의 support 평균(기준점)과 query 거리 계산에 쓰인다.
+    CoordConv는 기본으로 꺼져 있어 시간 좌표 채널은 붙지 않는다.
+    """
     def __init__(self, n_filters=10, coord_conv=False):
         super().__init__()
         in_channels = 1
@@ -118,12 +126,12 @@ class Classifier(nn.Module):
 
 
     def forward(self, x):
+        # (배치, 길이) -> (배치, 1채널, 길이). Conv1d는 채널 축이 가운데에 있어야 한다.
         b, seq_len = x.shape
         x = x.reshape([b, 1, seq_len])
-        x = self.block(x) # (b x 80 x 19) 형태의 다차원 특징맵으로 변환
-        x = self.avgpool(x) # (b x 80 x 1) 형태로 압축
-        x = x.view(b, -1)    # 최종적으로 공간 계산을 하기 좋게 (배치크기, 특징길이)의 1차원 벡터로 펼침
-        # x = self.fc(x)
-
+        x = self.block(x)
+        # 시간 축을 1로 눌러 (배치, 채널)이 된다. 채널 수는 마지막 Downsample의 n_filters * 16이다.
+        x = self.avgpool(x)
+        x = x.view(b, -1)
         return x
 

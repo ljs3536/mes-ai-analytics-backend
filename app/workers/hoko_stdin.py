@@ -1,6 +1,9 @@
-"""HOKO와 few-shot을 결합한 worker.
+"""HOKO 이름으로 등록된 few-shot worker.
 
-센서 파형에 임의의 회전수로 HOKO 포락선을 만들고, CNN few-shot이 기준점과 threshold를 저장한다.
+실제 특징 추출기는 DualViewKoopman이 아니다.
+센서 파형을 임의 회전수 1800rpm으로 각속도 포락선에 올린 뒤, 그 1차원 신호를 SSAD CNN(Classifier)에 넣는다.
+학습이 만드는 것은 model.pt의 CNN 가중치, prototype.npy의 정상 임베딩 평균, 거리 threshold다.
+루트의 HokoClassifier(믹서와 Koopman trunk, orders=torch.ones((1,)))는 이 worker가 부르지 않는다.
 """
 
 from __future__ import annotations
@@ -18,7 +21,10 @@ def _reply(body: dict) -> None:
 
 
 def _signals(payload: dict) -> tuple[np.ndarray, float]:
-    """센서 파형을 HOKO 포락선 신호와 임의 rpm으로 바꾼다."""
+    """수집 파형을 CNN이 먹을 1차원 포락선으로 바꾼다.
+
+    반환 신호 길이는 1024로 고정된다. rpm은 포락선의 각도 축을 만들 때만 쓰고, 모델 입력 텐서에는 들어가지 않는다.
+    """
     from app.hoko.front import to_signal
 
     rows = payload["samples"]
@@ -30,7 +36,11 @@ def _signals(payload: dict) -> tuple[np.ndarray, float]:
 
 
 def _train(payload: dict) -> dict:
-    """포락선 신호로 CNN few-shot을 학습하고 model.pt, prototype.npy, threshold를 저장한다."""
+    """포락선으로 CNN few-shot을 학습한다.
+
+    support 구간의 임베딩 평균이 정상 기준점이다.
+    기준점과의 거리 평균에 3표준편차를 더한 값을 threshold로 저장한다. 화면에서 threshold를 0보다 크게 주면 그 값을 쓴다.
+    """
     import torch
     import lightning.pytorch as pl
 
@@ -87,7 +97,7 @@ def _train(payload: dict) -> dict:
 
 
 def _infer(payload: dict) -> dict:
-    """저장한 HOKO few-shot 기준점과 포락선 임베딩의 거리를 threshold와 비교한다."""
+    """저장한 CNN으로 포락선을 임베딩하고, 기준점까지 유클리드 거리가 threshold를 넘으면 이상으로 본다."""
     import torch
     from app.ssad.model import Classifier
 
