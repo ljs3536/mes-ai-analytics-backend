@@ -1,3 +1,11 @@
+"""진동 이상 탐지 API.
+
+현재 기능:
+- 수집기의 특징값으로 Isolation Forest를 학습하고 MLflow에 등록
+- 운영 버전 지정
+- MQTT로 들어온 특징값을 점수화하고, 연속 이상이면 MES 설비 보류를 호출
+"""
+
 import logging
 from contextlib import asynccontextmanager
 
