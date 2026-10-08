@@ -1,0 +1,7 @@
+{
+  "observation": {
+    "spectral_atoms": 32,
+    "samples_per_unit": 64,
+    "window_units": 4.0
+  }
+}

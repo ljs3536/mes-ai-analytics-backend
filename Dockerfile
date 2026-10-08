@@ -11,6 +11,8 @@ WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install -r requirements.txt
+RUN pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+RUN pip install lightning==2.4.0
 
 COPY app ./app
 

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     mes_url: str = "http://localhost:8000"
     mlflow_tracking_uri: str = "http://localhost:5000"
     model_name: str = "vibration-anomaly"
+    model_dir: str = "data"
     anomaly_streak: int = 3
     cors_origins: list[str] = ["http://localhost:3001"]
 
