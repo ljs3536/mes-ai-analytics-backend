@@ -55,6 +55,8 @@ class Scorer:
     def start(self) -> None:
         """MQTT 구독과 모델 목록 갱신을 시작한다."""
         s = get_settings()
+        if s.mqtt_username:
+            self.client.username_pw_set(s.mqtt_username, s.mqtt_password)
         self.client.connect_async(s.mqtt_host, s.mqtt_port, keepalive=30)
         self.client.loop_start()
         threading.Thread(target=self._reload_loop, name="model-reload", daemon=True).start()

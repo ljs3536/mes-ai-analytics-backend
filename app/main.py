@@ -3,7 +3,7 @@
 현재 기능:
 - 모델을 여러 개 등록한다. 종류는 Isolation Forest, SSAD ProtoNet, HOKO few-shot이다.
 - 화면에서 종류별 파라미터와 실시간 적용 여부를 바꾼다.
-- 실시간 적용이 켜진 모델만 MQTT 데이터에 판정하고, 연속 이상이면 MES 설비 보류를 호출한다.
+- 실시간 적용이 켜진 모델만 MQTT 데이터에 판정하고, 연속 이상이면 MES 설비 보류를 호출한다. 계정이 있으면 그 계정으로 접속한다.
 - SSAD는 CNN few-shot worker가 학습하고 판정한다.
 - HOKO는 임의의 회전수로 센서 파형을 포락선에 올린 뒤 CNN few-shot으로 threshold를 만든다.
 - 베어링 사전학습 HOKO 분류기와 가중치는 센서 틀과 달라 뺐다.

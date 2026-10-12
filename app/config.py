@@ -8,6 +8,8 @@ class Settings(BaseSettings):
 
     mqtt_host: str = "localhost"
     mqtt_port: int = 1883
+    mqtt_username: str = ""
+    mqtt_password: str = ""
     mqtt_topic_prefix: str = "mes"
     collector_url: str = "http://localhost:8001"
     mes_url: str = "http://localhost:8000"
