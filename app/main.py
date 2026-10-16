@@ -1,7 +1,7 @@
 """진동 이상 탐지 API.
 
 현재 기능:
-- 모델을 여러 개 등록한다. 종류는 Isolation Forest, SSAD ProtoNet, HOKO few-shot이다.
+- 모델을 여러 개 등록한다. 종류는 Isolation Forest, SSAD ProtoNet, HOKO few-shot이다. 조회와 변경은 관리자만 한다.
 - 화면에서 종류별 파라미터와 실시간 적용 여부를 바꾼다.
 - 실시간 적용이 켜진 모델만 MQTT 데이터에 판정하고, 연속 이상이면 MES 설비 보류를 호출한다. 계정이 있으면 그 계정으로 접속한다.
 - SSAD는 CNN few-shot worker가 학습하고 판정한다.
@@ -20,6 +20,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
+from .auth import Admin
 from .catalog import create_model, delete_model, get_model, init_catalog, kinds, list_models, mark, update_model
 from .config import get_settings
 from .registry import ModelError, train_isolation
@@ -89,13 +90,13 @@ def healthz():
 
 
 @app.get("/api/models")
-def models():
+def models(_: Admin):
     """모델 종류 정의와 등록된 모델 목록을 돌려준다."""
     return {"kinds": kinds(), "models": list_models()}
 
 
 @app.post("/api/models", status_code=201)
-def add_model(body: ModelIn):
+def add_model(body: ModelIn, _: Admin):
     """모델을 등록한다. 실시간 적용 여부는 이 시점에 고른다."""
     try:
         return create_model(body.name, body.kind, body.params, body.realtime, body.machine)
@@ -104,7 +105,7 @@ def add_model(body: ModelIn):
 
 
 @app.put("/api/models/{model_id}")
-def edit_model(model_id: int, body: ModelUpdate):
+def edit_model(model_id: int, body: ModelUpdate, _: Admin):
     """파라미터와 실시간 적용 여부를 저장한다."""
     try:
         return update_model(model_id, name=body.name, params=body.params, realtime=body.realtime)
@@ -115,7 +116,7 @@ def edit_model(model_id: int, body: ModelUpdate):
 
 
 @app.delete("/api/models/{model_id}", status_code=204)
-def remove_model(model_id: int):
+def remove_model(model_id: int, _: Admin):
     """모델 목록에서 한 건을 지운다."""
     try:
         get_model(model_id)
@@ -125,13 +126,13 @@ def remove_model(model_id: int):
 
 
 @app.get("/api/live")
-def live():
+def live(_: Admin):
     """설비별 최신 판정을 화면 폴링에 돌려준다."""
     return {"predictions": scorer.latest if scorer else {}}
 
 
 @app.post("/api/models/{model_id}/train")
-def train_model(model_id: int, body: TrainIn):
+def train_model(model_id: int, body: TrainIn, _: Admin):
     """종류에 맞는 학습을 시작한다. Isolation Forest는 특징값, SSAD와 HOKO는 파형이다."""
     try:
         row = get_model(model_id)

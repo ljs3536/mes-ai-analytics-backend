@@ -107,7 +107,8 @@ def _infer(payload: dict) -> dict:
     if not ckpt.exists() or not proto_path.exists():
         return {"ok": False, "error": "학습된 HOKO few-shot 가중치가 없습니다."}
     signal, _rpm = _signals(payload)
-    bundle = torch.load(ckpt, map_location="cpu", weights_only=False)
+    # model.pt는 가중치 dict만 담는다. pickle 코드는 실행하지 않는다.
+    bundle = torch.load(ckpt, map_location="cpu", weights_only=True)
     model = Classifier(n_filters=int(bundle.get("n_filters", 20)))
     model.load_state_dict(bundle["state_dict"], strict=False)
     model.eval()

@@ -84,7 +84,8 @@ def _infer(payload: dict) -> dict:
     proto_path = out / "prototype.npy"
     if not ckpt.exists() or not proto_path.exists():
         return {"ok": False, "error": "학습된 SSAD 가중치가 없습니다."}
-    bundle = torch.load(ckpt, map_location="cpu", weights_only=False)
+    # model.pt는 가중치 dict만 담는다. pickle 코드는 실행하지 않는다.
+    bundle = torch.load(ckpt, map_location="cpu", weights_only=True)
     n_filters = int(bundle.get("n_filters", payload["params"].get("nFilters", 20)))
     model = Classifier(n_filters=n_filters)
     model.load_state_dict(bundle["state_dict"], strict=False)
