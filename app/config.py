@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     model_name: str = "vibration-anomaly"
     model_dir: str = "data"
     anomaly_streak: int = 3
+    mes_internal_token: str = ""
     cors_origins: list[str] = ["http://localhost:3001"]
 
 

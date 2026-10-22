@@ -9,11 +9,13 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import re
 import socket
 import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import quote
 
 import httpx
 import numpy as np
@@ -219,10 +221,17 @@ class Scorer:
             return
         self._hold_until[machine] = time.monotonic() + 120
         self._streak[key] = 0
+        if re.fullmatch(r"[A-Za-z0-9_-]{1,64}", machine) is None:
+            log.warning("설비 코드가 올바르지 않아 정지하지 않습니다")
+            return
+        token = get_settings().mes_internal_token
+        if not token:
+            log.warning("%s MES 내부 토큰이 없어 정지하지 않습니다", machine)
+            return
         reason = f"AI 이상 감지 {name} v{version} score={score:.3f}"
-        url = f"{get_settings().mes_url}/api/machines/by-code/{machine}/hold"
+        url = f"{get_settings().mes_url}/api/machines/by-code/{quote(machine, safe='')}/hold"
         try:
-            res = httpx.post(url, params={"reason": reason}, timeout=5)
+            res = httpx.post(url, params={"reason": reason}, headers={"X-Internal-Token": token}, timeout=5)
         except httpx.HTTPError as e:
             log.warning("%s MES 정지 호출 실패: %s", machine, e)
             return

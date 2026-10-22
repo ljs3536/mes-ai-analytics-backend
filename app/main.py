@@ -3,7 +3,7 @@
 현재 기능:
 - 모델을 여러 개 등록한다. 종류는 Isolation Forest, SSAD ProtoNet, HOKO few-shot이다. 조회와 변경은 관리자만 한다.
 - 화면에서 종류별 파라미터와 실시간 적용 여부를 바꾼다.
-- 실시간 적용이 켜진 모델만 MQTT 데이터에 판정하고, 연속 이상이면 MES 설비 보류를 호출한다. 계정이 있으면 그 계정으로 접속한다.
+- 실시간 적용이 켜진 모델만 MQTT 데이터에 판정하고, 연속 이상이면 내부 토큰으로 MES 설비 보류를 호출한다. 계정이 있으면 그 계정으로 접속한다.
 - SSAD는 CNN few-shot worker가 학습하고 판정한다.
 - HOKO는 임의의 회전수로 센서 파형을 포락선에 올린 뒤 CNN few-shot으로 threshold를 만든다.
 - 베어링 사전학습 HOKO 분류기와 가중치는 센서 틀과 달라 뺐다.
@@ -51,9 +51,9 @@ class ModelUpdate(Schema):
 
 
 class TrainIn(Schema):
-    machine: str
+    machine: str = Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
     minutes: int = Field(default=30, ge=1, le=1440)
-    channel: str | None = None
+    channel: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]{1,64}$")
 
 
 train_pool = WorkerPool("app.workers.ssad_stdin", 1)
@@ -149,12 +149,20 @@ def train_model(model_id: int, body: TrainIn, _: Admin):
     raise ModelError("지원하지 않는 모델 종류입니다.", 422)
 
 
-def _features(body: TrainIn) -> list[dict]:
-    params = {"machine": body.machine, "minutes": body.minutes}
+def _collector_query(body: TrainIn, **extra: int) -> dict:
+    params: dict = {"machine": body.machine, **extra}
     if body.channel:
         params["channel"] = body.channel
+    return params
+
+
+def _features(body: TrainIn) -> list[dict]:
     try:
-        res = httpx.get(f"{get_settings().collector_url}/api/features", params=params, timeout=30)
+        res = httpx.get(
+            f"{get_settings().collector_url}/api/features",
+            params=_collector_query(body, minutes=body.minutes),
+            timeout=30,
+        )
         res.raise_for_status()
     except httpx.HTTPError as e:
         raise ModelError(f"수집기에서 특징값을 가져오지 못했습니다: {e}", 503) from e
@@ -175,11 +183,12 @@ def _train_forest(row: dict, body: TrainIn) -> dict:
 
 def _train_ssad(row: dict, body: TrainIn) -> dict:
     """최신 파형으로 SSAD few-shot 학습을 백그라운드에 맡긴다."""
-    query = f"machine={body.machine}"
-    if body.channel:
-        query += f"&channel={body.channel}"
     try:
-        res = httpx.get(f"{get_settings().collector_url}/api/waveform?{query}", timeout=30)
+        res = httpx.get(
+            f"{get_settings().collector_url}/api/waveform",
+            params=_collector_query(body),
+            timeout=30,
+        )
         res.raise_for_status()
     except httpx.HTTPError as e:
         raise ModelError(f"수집기에서 파형을 가져오지 못했습니다: {e}", 503) from e
@@ -204,11 +213,12 @@ def _train_ssad(row: dict, body: TrainIn) -> dict:
 
 
 def _latest_wave(body: TrainIn) -> dict:
-    query = f"machine={body.machine}"
-    if body.channel:
-        query += f"&channel={body.channel}"
     try:
-        res = httpx.get(f"{get_settings().collector_url}/api/waveform?{query}", timeout=30)
+        res = httpx.get(
+            f"{get_settings().collector_url}/api/waveform",
+            params=_collector_query(body),
+            timeout=30,
+        )
         res.raise_for_status()
     except httpx.HTTPError as e:
         raise ModelError(f"수집기에서 파형을 가져오지 못했습니다: {e}", 503) from e
